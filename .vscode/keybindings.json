@@ -1,0 +1,9 @@
+{
+    "key": "ctrl+shift+alt+c",
+    "command": "workbench.action.terminal.runSelectedText",
+    "when": "editorTextFocus",
+    "args": {
+        "inTerminal": true,
+        "cwd": "${fileDirname}"
+    }
+}

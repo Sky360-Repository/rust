@@ -24,5 +24,31 @@
 		"DISPLAY": "${localEnv:DISPLAY}",
 		"LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
 	},
+	"extensions":[
+		"lorenzopirro.rust-flash-snippets",
+		"dustypomerleau.rust-syntax",
+		"ms-vscode.anycode-rust",
+		"bungcip.better-toml",
+		"vadimcn.vscode-lldb",
+		"serayuzgur.crates",
+		"1YiB.rust-bundle",
+		"nyxiative.rust-and-friends",
+		"JScearcy.rust-doc-viewer",
+		"Swellaby.rust-pack",
+		"ZhangYue.rust-mod-generator",
+		"PolyMeilex.rust-targets",
+		"rust-lang.rust-analyzer",
+		"jeff-hykin.better-cpp-syntax",
+		"ms-vscode.cpptools-themes",
+		"ms-vscode-remote.remote-containers",
+		"ms-vscode.cpptools",
+		"ms-vscode.cpptools-extension-pack",
+		"twxs.cmake",
+		"josetr.cmake-language-support-vscode",
+		"ms-vscode.cmake-tools",
+		"VisualStudioExptTeam.vscodeintellicode",
+		"GitHub.copilot",
+		"eamodio.gitlens"
+	]
 	// Set *default* container specific settings.json values on container create.
 }
