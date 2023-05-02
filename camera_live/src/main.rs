@@ -2,13 +2,13 @@ extern crate opencv;
 
 use qhyccd_sdk::sdk::QhyCcd;
 
-use opencv::{
-    core,
-    highgui,
-    imgproc,
-    prelude::*,
-    videoio,
-};
+// use opencv::{
+//     core,
+//     highgui,
+//     imgproc,
+//     prelude::*,
+//     videoio,
+// };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let res = QhyCcd::init_resource();
