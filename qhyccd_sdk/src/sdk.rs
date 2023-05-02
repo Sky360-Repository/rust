@@ -6,7 +6,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 pub struct QhyCcd {
-    handle: *mut c_bindings::qhyccd_handle,
+    handle: *mut c_bindings::QhyCcdHandle,
 }
 
 pub enum CameraStatus {
@@ -48,7 +48,7 @@ pub enum Bayer {
     GR = 2,
     BG = 3,
     RG = 4,
-    Unknown = 4294967295
+    Unknown = 0xffffffff
 }
 
 impl Default for Bayer {
@@ -213,7 +213,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn init(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn init(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::InitQHYCCD(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -222,7 +222,7 @@ impl QhyCcd {
         }
     }    
     
-    pub fn set_stream_mode(handle: *mut c_bindings::qhyccd_handle, mode: u8) -> Result<(), SdkError> {
+    pub fn set_stream_mode(handle: *mut c_bindings::QhyCcdHandle, mode: u8) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::SetQHYCCDStreamMode(handle, mode) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -231,8 +231,8 @@ impl QhyCcd {
         }
     }
     
-    pub fn is_control_available(handle: *mut c_bindings::qhyccd_handle, control_id: c_bindings::CONTROL_ID) -> Result<bool, Bayer> {
-        let ret = unsafe { c_bindings::IsQHYCCDControlAvailable(handle, control_id) };
+    pub fn is_control_available(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<bool, Bayer> {
+        let ret = unsafe { c_bindings::IsQHYCCDControlAvailable(handle, control_id as u32) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(true),
@@ -244,8 +244,8 @@ impl QhyCcd {
         }
     }
     
-    pub fn set_param(handle: *mut c_bindings::qhyccd_handle, control_id: c_bindings::CONTROL_ID, value: f64) -> Result<(), SdkError> {
-        let ret = unsafe { c_bindings::SetQHYCCDParam(handle, control_id, value) };
+    pub fn set_param(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId, value: f64) -> Result<(), SdkError> {
+        let ret = unsafe { c_bindings::SetQHYCCDParam(handle, control_id as u32, value) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(()),
@@ -253,17 +253,17 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_param(handle: *mut c_bindings::qhyccd_handle, control_id: c_bindings::CONTROL_ID) -> f64 {
-        unsafe { c_bindings::GetQHYCCDParam(handle, control_id) }
+    pub fn get_param(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> f64 {
+        unsafe { c_bindings::GetQHYCCDParam(handle, control_id as u32) }
     }
 
-    pub fn get_param_min_max_step(handle: *mut c_bindings::qhyccd_handle, control_id: c_bindings::CONTROL_ID) -> Result<(f64, f64, f64), SdkError> {
+    pub fn get_param_min_max_step(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<(f64, f64, f64), SdkError> {
         let mut min: f64 = 0.0;
         let mut max: f64 = 0.0;
         let mut step: f64 = 0.0;
     
         let ret = unsafe {
-            c_bindings::GetQHYCCDParamMinMaxStep(handle, control_id, &mut min as *mut f64, &mut max as *mut f64, &mut step as *mut f64)
+            c_bindings::GetQHYCCDParamMinMaxStep(handle, control_id as u32, &mut min as *mut f64, &mut max as *mut f64, &mut step as *mut f64)
         };
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
@@ -274,7 +274,7 @@ impl QhyCcd {
     }
 
     pub fn set_resolution(
-        handle: *mut c_bindings::qhyccd_handle,
+        handle: *mut c_bindings::QhyCcdHandle,
         x: u32,
         y: u32,
         xsize: u32,
@@ -288,7 +288,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_mem_length(handle: *mut c_bindings::qhyccd_handle) -> Result<u32, SdkError> {
+    pub fn get_mem_length(handle: *mut c_bindings::QhyCcdHandle) -> Result<u32, SdkError> {
         let ret = unsafe { c_bindings::GetQHYCCDMemLength(handle) };  
         if ret != 0 {
             Ok(ret)
@@ -297,7 +297,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn exp_single_frame(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn exp_single_frame(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::ExpQHYCCDSingleFrame(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -306,7 +306,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_single_frame(handle: *mut c_bindings::qhyccd_handle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_single_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
         let mut w: u32 = 0;
         let mut h: u32 = 0;
         let mut bpp: u32 = 0;
@@ -329,7 +329,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn cancel_exposing(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn cancel_exposing(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::CancelQHYCCDExposing(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -338,7 +338,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn cancel_exposing_and_readout(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn cancel_exposing_and_readout(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::CancelQHYCCDExposingAndReadout(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -347,7 +347,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn begin_live(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn begin_live(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::BeginQHYCCDLive(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -356,7 +356,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn stop_live(handle: *mut c_bindings::qhyccd_handle) -> Result<(), SdkError> {
+    pub fn stop_live(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::StopQHYCCDLive(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -365,7 +365,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn get_live_frame(handle: *mut c_bindings::qhyccd_handle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_live_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
         let mut w: u32 = 0;
         let mut h: u32 = 0;
         let mut bpp: u32 = 0;
@@ -389,7 +389,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn set_bin_mode(handle: *mut c_bindings::qhyccd_handle, wbin: u32, hbin: u32) -> Result<(), SdkError> {
+    pub fn set_bin_mode(handle: *mut c_bindings::QhyCcdHandle, wbin: u32, hbin: u32) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::SetQHYCCDBinMode(handle, wbin, hbin) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -398,7 +398,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn set_bits_mode(handle: *mut c_bindings::qhyccd_handle, bits: u32) -> Result<(), SdkError> {
+    pub fn set_bits_mode(handle: *mut c_bindings::QhyCcdHandle, bits: u32) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::SetQHYCCDBitsMode(handle, bits) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -407,7 +407,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn set_control_temp(handle: *mut c_bindings::qhyccd_handle, targettemp: f64) -> Result<(), SdkError> {
+    pub fn set_control_temp(handle: *mut c_bindings::QhyCcdHandle, targettemp: f64) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::ControlQHYCCDTemp(handle, targettemp) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
@@ -416,7 +416,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_chip_info(handle: *mut c_bindings::qhyccd_handle) -> Result<(f64, f64, u32, u32, f64, f64, u32), SdkError> {
+    pub fn get_chip_info(handle: *mut c_bindings::QhyCcdHandle) -> Result<(f64, f64, u32, u32, f64, f64, u32), SdkError> {
         let mut chipw: f64 = 0.0;
         let mut chiph: f64 = 0.0;
         let mut imagew: u32 = 0;
@@ -445,7 +445,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_effective_area(handle: *mut c_bindings::qhyccd_handle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_effective_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -468,7 +468,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_overscan_area(handle: *mut c_bindings::qhyccd_handle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_overscan_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -491,7 +491,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_current_roi(handle: *mut c_bindings::qhyccd_handle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_current_roi(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -514,7 +514,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn get_camera_status(handle: *mut c_bindings::qhyccd_handle) -> Result<CameraStatus, SdkError> {
+    pub fn get_camera_status(handle: *mut c_bindings::QhyCcdHandle) -> Result<CameraStatus, SdkError> {
         let mut buf = [0u8; 4];
         let ret = unsafe { c_bindings::GetQHYCCDCameraStatus(handle, buf.as_mut_ptr()) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
@@ -534,7 +534,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn set_debayer_on_off(handle: *mut c_bindings::qhyccd_handle, onoff: bool) -> Result<(), SdkError> {
+    pub fn set_debayer_on_off(handle: *mut c_bindings::QhyCcdHandle, onoff: bool) -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::SetQHYCCDDebayerOnOff(handle, onoff) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
