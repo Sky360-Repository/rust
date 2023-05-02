@@ -1,6 +1,6 @@
 extern crate opencv;
 
-use qhyccd_sdk::qhyccd::QHYCCD;
+use qhyccd_sdk::sdk::QhyCcd;
 
 use opencv::{
     core,
@@ -11,14 +11,14 @@ use opencv::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let res = QHYCCD::init_resource();
+    let res = QhyCcd::init_resource();
     println!("Init resource result: {:?}", res);
 
-    let num_devices = QHYCCD::scan();
+    let num_devices = QhyCcd::scan();
     println!("Number of devices: {:?}", num_devices);
 
     if num_devices > 0 {
-        let cam_id = QHYCCD::get_id(0);
+        let cam_id = QhyCcd::get_id(0);
         println!("Device {:?}: {:?}", 0, cam_id);
     }
 

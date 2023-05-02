@@ -4,7 +4,7 @@ mod c_bindings;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-pub struct QHYCCD {
+pub struct QhyCcd {
     handle: *mut c_bindings::qhyccd_handle,
 }
 
@@ -16,7 +16,7 @@ pub enum CameraStatus {
     Unknown(u8),
 }
 
-impl QHYCCD {
+impl QhyCcd {
     pub fn init_resource() -> Result<(), u32> {
         let ret = unsafe { c_bindings::InitQHYCCDResource() };
         if ret == c_bindings::QHYCCD_SUCCESS as u32 {
@@ -438,7 +438,7 @@ impl QHYCCD {
 
 }
 
-impl Drop for QHYCCD {
+impl Drop for QhyCcd {
     fn drop(&mut self) {
         let _ = self.close();
     }

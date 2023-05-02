@@ -1,2 +1,2 @@
 
-pub mod qhyccd;
+pub mod sdk;
