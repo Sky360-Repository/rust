@@ -1,14 +1,15 @@
-#[path = "c_bindings.rs"]
-mod c_bindings;
+ #[path = "c_bindings.rs"]
+ mod c_bindings;
 
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+ use derive_more::Display;
+ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 pub struct QhyCcd {
-    handle: *mut c_bindings::QhyCcdHandle,
 }
 
+#[derive(Display)]
 pub enum CameraStatus {
     Idle,
     Waiting,
@@ -18,7 +19,7 @@ pub enum CameraStatus {
 }
 
 #[repr(u32)]
-#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
 pub enum SdkError {
     Success = 0,
     NotCool = 1,
@@ -42,21 +43,29 @@ impl Default for SdkError {
 }
 
 #[repr(u32)]
-#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
-pub enum Bayer {
+#[derive(Debug, Clone, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
+pub enum BayerFormat {
     GB = 1,
     GR = 2,
     BG = 3,
     RG = 4,
-    Unknown = 0xffffffff
+    Mono = 0xffffffff
 }
 
-impl Default for Bayer {
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum StreamMode {
+    SingleFrame = 0,
+    LiveFrame = 1,
+}
+
+impl Default for BayerFormat {
     fn default() -> Self {
-        Bayer::Unknown
+        BayerFormat::Mono
     }
 }
 
+#[derive(Display)]
 pub enum ControlId {
     ControlBrightness = 0,
     ControlContrast = 1,
@@ -143,6 +152,14 @@ pub enum ControlId {
 }
 
 impl QhyCcd {
+    pub fn enable_message(enable: bool) {
+        unsafe { c_bindings::EnableQHYCCDMessage(enable); }
+    }
+
+    pub fn enable_log_file(enable: bool) {
+        unsafe { c_bindings::EnableQHYCCDLogFile(enable); }
+    }
+
     pub fn init_resource() -> Result<(), SdkError> {
         let ret = unsafe { c_bindings::InitQHYCCDResource() };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
@@ -165,18 +182,18 @@ impl QhyCcd {
         unsafe { c_bindings::ScanQHYCCD() }
     }
 
-    pub fn open(id: &str) -> Result<Self, SdkError> {
+    pub fn open(id: &str) -> Result<*mut c_bindings::QhyCcdHandle, SdkError> {
         let id_cstring = CString::new(id).unwrap();
         let handle = unsafe { c_bindings::OpenQHYCCD(id_cstring.as_ptr() as *mut c_char) };
         if handle.is_null() {
             Err(SdkError::Error)
         } else {
-            Ok(Self { handle })
+            Ok(handle)
         }
     }
 
-    pub fn close(&mut self) -> Result<(), SdkError> {
-        let ret = unsafe { c_bindings::CloseQHYCCD(self.handle) };
+    pub fn close(handle: *mut c_bindings::QhyCcdHandle) -> Result<(), SdkError> {
+        let ret = unsafe { c_bindings::CloseQHYCCD(handle) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(()),
@@ -222,8 +239,8 @@ impl QhyCcd {
         }
     }    
     
-    pub fn set_stream_mode(handle: *mut c_bindings::QhyCcdHandle, mode: u8) -> Result<(), SdkError> {
-        let ret = unsafe { c_bindings::SetQHYCCDStreamMode(handle, mode) };
+    pub fn set_stream_mode(handle: *mut c_bindings::QhyCcdHandle, mode: StreamMode) -> Result<(), SdkError> {
+        let ret = unsafe { c_bindings::SetQHYCCDStreamMode(handle, mode as u8) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(()),
@@ -231,14 +248,14 @@ impl QhyCcd {
         }
     }
     
-    pub fn is_control_available(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<bool, Bayer> {
+    pub fn is_control_available(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<bool, BayerFormat> {
         let ret = unsafe { c_bindings::IsQHYCCDControlAvailable(handle, control_id as u32) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(true),
             SdkError::Error => Ok(false),
             _ => {
-                let bayer = Bayer::try_from(error_result as u32).unwrap_or_default();
+                let bayer = BayerFormat::try_from(error_result as u32).unwrap_or_default();
                 Err(bayer)
             }
         }
@@ -564,11 +581,5 @@ impl QhyCcd {
         unsafe {
             c_bindings::QHYCCDEqualizeHistogram(pdata.as_mut_ptr(), width, height, bpp);
         }
-    }
-}
-
-impl Drop for QhyCcd {
-    fn drop(&mut self) {
-        let _ = self.close();
     }
 }

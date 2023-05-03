@@ -1,6 +1,9 @@
 pub type QhyCcdHandle = ::std::os::raw::c_void;
 
+#[allow(dead_code)]
 extern "C" {
+    pub fn EnableQHYCCDMessage(enable: bool);
+    pub fn EnableQHYCCDLogFile(enable: bool);
     pub fn InitQHYCCDResource() -> u32;
     pub fn ReleaseQHYCCDResource() -> u32;
     pub fn ScanQHYCCD() -> u32;
