@@ -1,7 +1,7 @@
 extern crate opencv;
 
 use qhyccd_sdk::sdk::QhyCcd;
-use qhyccd_sdk::camera::Camera;
+use qhyccd_sdk::camera::{Camera, ControlParam};
 
 // use opencv::{
 //     core,
@@ -12,15 +12,12 @@ use qhyccd_sdk::camera::Camera;
 // };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut camera = Camera::new();
-    let cameras = camera.get_cameras();
-    if !cameras.is_empty() {
-        for (key, value) in cameras.iter() {
-            println!("Key: {}, Value: {}", key, value);
-        }
-    } else {
-        println!("No cameras connected");
+    let has_camera = open_qhy_camera();
+    if has_camera.is_none() {
+        println!("No camera to work with");
+        return Ok(())
     }
+    let camera = has_camera.unwrap();
 
     // // Open the default camera (camera index 0)
     // let mut capture = videoio::VideoCapture::from_file("Dahua-20220901-184734.mp4", videoio::CAP_ANY)?; 
@@ -56,6 +53,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // }
 
     Ok(())
+}
+
+fn open_qhy_camera() -> Option<Camera> {
+    let mut camera = Camera::new();
+    let cameras = camera.get_cameras();
+    if !cameras.is_empty() {
+        for (key, value) in cameras.iter() {
+            println!("Key: {}, Value: {}", key, value);
+        }
+    } else {
+        return None
+    }
+
+    let res = camera.open("");
+    if !res {
+        println!("Could not open camera");
+        return None
+    }
+
+    camera.set_control(&ControlParam::RedWB, 180.0, false);
+    camera.set_control(&ControlParam::GreenWB, 128.0, false);
+    camera.set_control(&ControlParam::BlueWB, 190.0, false);
+
+    return Some(camera)
 }
 
 fn test_sdk_directly() {

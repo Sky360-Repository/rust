@@ -454,22 +454,22 @@ impl Camera {
         if !self.default_set
         {
             self.set_debayer(false);
-            // setControl(RedWB, 180.0, true);
-            // setControl(GreenWB, 128.0, true);
-            // setControl(BlueWB, 190.0, true);
-            // setControl(Exposure, 2000, true);
+            self.set_control(&ControlParam::RedWB, 180.0, true);
+            self.set_control(&ControlParam::GreenWB, 128.0, true);
+            self.set_control(&ControlParam::BlueWB, 190.0, true);
+            self.set_control(&ControlParam::Exposure, 2000.0, true);
             self.set_stream_mode(&sdk::StreamMode::LiveFrame);
-            // setControl(UsbTraffic, 5, true);
-            // setControl(UsbSpeed, 0, true);
-            // setControl(Gain, 30, true);
-            // setControl(Offset, 0, true);
+            self.set_control(&ControlParam::UsbTraffic, 5.0, true);
+            self.set_control(&ControlParam::UsbSpeed, 0.0, true);
+            self.set_control(&ControlParam::Gain, 30.0, true);
+            self.set_control(&ControlParam::Offset, 0.0, true);
             self.set_resolution(0, 0, self.current_info.max_image_width, self.current_info.max_image_height);
-            // setControl(TransferBits, 8, true);
-            // setControl(Channels, 1, true);
+            self.set_control(&ControlParam::TransferBits, 8.0, true);
+            self.set_control(&ControlParam::Channels, 1.0, true);
             self.set_bin_mode(BinMode::Bin1x1);
-            // setControl(Contrast, 0.0, true);
-            // setControl(Brightness, 0.0, true);
-            // setControl(Gamma, 1.0, true);
+            self.set_control(&ControlParam::Contrast, 0.0, true);
+            self.set_control(&ControlParam::Brightness, 0.0, true);
+            self.set_control(&ControlParam::Gamma, 1.0, true);
 
             self.default_set = true;
         }
