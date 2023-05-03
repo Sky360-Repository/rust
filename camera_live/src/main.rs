@@ -1,6 +1,7 @@
 extern crate opencv;
 
 use qhyccd_sdk::sdk::QhyCcd;
+use qhyccd_sdk::camera::Camera;
 
 // use opencv::{
 //     core,
@@ -11,17 +12,15 @@ use qhyccd_sdk::sdk::QhyCcd;
 // };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let res = QhyCcd::init_resource();
-    println!("Init resource result: {:?}", res);
-
-    let num_devices = QhyCcd::scan();
-    println!("Number of devices: {:?}", num_devices);
-
-    if num_devices > 0 {
-        let cam_id = QhyCcd::get_id(0);
-        println!("Device {:?}: {:?}", 0, cam_id);
+    let mut camera = Camera::new();
+    let cameras = camera.get_cameras();
+    if !cameras.is_empty() {
+        for (key, value) in cameras.iter() {
+            println!("Key: {}, Value: {}", key, value);
+        }
+    } else {
+        println!("No cameras connected");
     }
-
 
     // // Open the default camera (camera index 0)
     // let mut capture = videoio::VideoCapture::from_file("Dahua-20220901-184734.mp4", videoio::CAP_ANY)?; 
@@ -57,4 +56,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // }
 
     Ok(())
+}
+
+fn test_sdk_directly() {
+    let res = QhyCcd::init_resource();
+    println!("Init resource result: {:?}", res);
+
+    let num_devices = QhyCcd::scan();
+    println!("Number of devices: {:?}", num_devices);
+
+    if num_devices > 0 {
+        let cam_id = QhyCcd::get_id(0);
+        println!("Device {:?}: {:?}", 0, cam_id);
+    }
 }

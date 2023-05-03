@@ -1,10 +1,11 @@
 use std::fmt;
 use std::collections::HashMap;
+use derive_more::Display;
 
- #[path = "c_bindings.rs"]
- mod c_bindings;
+#[path = "c_bindings.rs"]
+mod c_bindings;
 
-use crate::sdk::{self};
+use crate::sdk::{self, ControlId};
 
 pub struct Camera {
     debug_info: bool,
@@ -28,12 +29,6 @@ pub enum BinMode {
     Bin2x2 = 2,
     Bin3x3 = 3,
     Bin4x4 = 4,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum StreamMode {
-    SingleFrame = 0,
-    LiveFrame = 1,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -170,7 +165,7 @@ pub struct CameraParams {
     pub brightness: f64,
     pub gamma: f64,
 
-    pub stream_mode: StreamMode,
+    pub stream_mode: sdk::StreamMode,
 
     pub channels: u32,
     pub usb_traffic: u32,
@@ -200,7 +195,7 @@ impl Default for CameraParams {
             brightness: 0.0,
             gamma: 1.0,
 
-            stream_mode: StreamMode::LiveFrame,
+            stream_mode: sdk::StreamMode::LiveFrame,
 
             channels: 0,
             usb_traffic: 0,
@@ -214,21 +209,22 @@ impl Default for CameraParams {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[repr(u32)]
+#[derive(Display, Debug, Clone, PartialEq)]
 pub enum ControlParam {
-    Brightness,
-    Contrast,
-    Exposure,
-    UsbTraffic,
-    UsbSpeed,
-    Gain,
-    Offset,
-    TransferBits,
-    RedWB,
-    BlueWB,
-    GreenWB,
-    Gamma,
-    Channels,
+    Brightness = ControlId::ControlBrightness as u32,
+    Contrast = ControlId::ControlContrast as u32,
+    Exposure = ControlId::ControlExposure as u32,
+    UsbTraffic = ControlId::ControlUsbTraffic as u32,
+    UsbSpeed = ControlId::ControlSpeed as u32,
+    Gain = ControlId::ControlGain as u32,
+    Offset = ControlId::ControlOffset as u32,
+    TransferBits = ControlId::ControlTransferBit as u32,
+    RedWB = ControlId::ControlWbr as u32,
+    BlueWB = ControlId::ControlWbb as u32,
+    GreenWB = ControlId::ControlWbg as u32,
+    Gamma = ControlId::ControlGamma as u32,
+    Channels = ControlId::ControlChannels as u32,
 }
 
 use sdk::QhyCcd;
@@ -274,7 +270,7 @@ impl Camera {
     pub fn close(&mut self) {
         if self.cam_open
         {
-            if self.params.stream_mode == StreamMode::SingleFrame {
+            if self.params.stream_mode == sdk::StreamMode::SingleFrame {
                 let _ = QhyCcd::cancel_exposing_and_readout(self.cam_handle);
             } else {
                 let _ = QhyCcd::stop_live(self.cam_handle);
@@ -310,7 +306,6 @@ impl Camera {
 
         let cam_count = QhyCcd::scan();
         if cam_count == 0 {
-            eprintln!("Cannot initialize SDK resources");
             return false
         }
         for index in 0..cam_count {
@@ -347,17 +342,17 @@ impl Camera {
         let overscan = QhyCcd::get_overscan_area(handle).unwrap();
         let effective = QhyCcd::get_effective_area(handle).unwrap();
         let chip_info = QhyCcd::get_chip_info(handle).unwrap();
-        let bayer_format = QhyCcd::is_control_available(handle, sdk::ControlId::CamColor).unwrap_err();
-        let has_bin1x1_mode = QhyCcd::is_control_available(handle, sdk::ControlId::CamBin1x1Mode).is_ok();
-        let has_bin2x2_mode = QhyCcd::is_control_available(handle, sdk::ControlId::CamBin2x2Mode).is_ok();
-        let has_bin3x3_mode = QhyCcd::is_control_available(handle, sdk::ControlId::CamBin3x3Mode).is_ok();
-        let has_bin4x4_mode = QhyCcd::is_control_available(handle, sdk::ControlId::CamBin4x4Mode).is_ok();
-        let gain_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlGain).unwrap();
-        let offset_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlOffset).unwrap();
-        let usb_traffic_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlUsbTraffic).unwrap();
-        let red_wb_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlWbr).unwrap();
-        let green_wb_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlWbg).unwrap();
-        let blue_wb_limits = QhyCcd::get_param_min_max_step(handle, sdk::ControlId::ControlWbb).unwrap();
+        let bayer_format = QhyCcd::is_control_available(handle, &sdk::ControlId::CamColor).unwrap_err();
+        let has_bin1x1_mode = QhyCcd::is_control_available(handle, &sdk::ControlId::CamBin1x1Mode).unwrap();
+        let has_bin2x2_mode = QhyCcd::is_control_available(handle, &sdk::ControlId::CamBin2x2Mode).unwrap();
+        let has_bin3x3_mode = QhyCcd::is_control_available(handle, &sdk::ControlId::CamBin3x3Mode).unwrap();
+        let has_bin4x4_mode = QhyCcd::is_control_available(handle, &sdk::ControlId::CamBin4x4Mode).unwrap();
+        let gain_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlGain).unwrap();
+        let offset_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlOffset).unwrap();
+        let usb_traffic_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlUsbTraffic).unwrap();
+        let red_wb_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlWbr).unwrap();
+        let green_wb_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlWbg).unwrap();
+        let blue_wb_limits = QhyCcd::get_param_min_max_step(handle, &sdk::ControlId::ControlWbb).unwrap();
 
         let ci = CameraInfo {
             id: cam_id.to_string(),
@@ -384,12 +379,12 @@ impl Camera {
             has_bin2x2_mode,
             has_bin3x3_mode,
             has_bin4x4_mode,
-            gain_limits: ParamLimits { max: gain_limits.0, min: gain_limits.1, step: gain_limits.2 },
-            offset_limits: ParamLimits { max: offset_limits.0, min: offset_limits.1, step: offset_limits.2 },
-            usb_traffic_limits: ParamLimits { max: usb_traffic_limits.0, min: usb_traffic_limits.1, step: usb_traffic_limits.2 },
-            red_wb_limits: ParamLimits { max: red_wb_limits.0, min: red_wb_limits.1, step: red_wb_limits.2 },
-            green_wb_limits: ParamLimits { max: green_wb_limits.0, min: green_wb_limits.1, step: green_wb_limits.2 },
-            blue_wb_limits: ParamLimits { max: blue_wb_limits.0, min: blue_wb_limits.1, step: blue_wb_limits.2 },
+            gain_limits: ParamLimits { max: gain_limits.1, min: gain_limits.0, step: gain_limits.2 },
+            offset_limits: ParamLimits { max: offset_limits.1, min: offset_limits.0, step: offset_limits.2 },
+            usb_traffic_limits: ParamLimits { max: usb_traffic_limits.1, min: usb_traffic_limits.0, step: usb_traffic_limits.2 },
+            red_wb_limits: ParamLimits { max: red_wb_limits.1, min: red_wb_limits.0, step: red_wb_limits.2 },
+            green_wb_limits: ParamLimits { max: green_wb_limits.1, min: green_wb_limits.0, step: green_wb_limits.2 },
+            blue_wb_limits: ParamLimits { max: blue_wb_limits.1, min: blue_wb_limits.0, step: blue_wb_limits.2 },
         };
 
         let _ = QhyCcd::close(handle);
@@ -463,12 +458,12 @@ impl Camera {
             // setControl(GreenWB, 128.0, true);
             // setControl(BlueWB, 190.0, true);
             // setControl(Exposure, 2000, true);
-            // setStreamMode(LiveFrame);
+            self.set_stream_mode(&sdk::StreamMode::LiveFrame);
             // setControl(UsbTraffic, 5, true);
             // setControl(UsbSpeed, 0, true);
             // setControl(Gain, 30, true);
             // setControl(Offset, 0, true);
-            // setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
+            self.set_resolution(0, 0, self.current_info.max_image_width, self.current_info.max_image_height);
             // setControl(TransferBits, 8, true);
             // setControl(Channels, 1, true);
             self.set_bin_mode(BinMode::Bin1x1);
@@ -494,7 +489,7 @@ impl Camera {
         let _ = self.aloc_buffer_memory();
         self.params.apply_debayer = enable;
 
-        return true
+        true
     }
 
     pub fn set_bin_mode(&mut self, bin_mode: BinMode) -> bool {
@@ -508,7 +503,7 @@ impl Camera {
         let _ = self.aloc_buffer_memory();
         self.params.bin_mode = bin_mode;
 
-        return true
+        true
     }
 
     pub fn set_resolution(&mut self, start_x: u32, start_y: u32, width: u32, height: u32) -> bool {
@@ -529,7 +524,21 @@ impl Camera {
             let _ = self.open(self.cam_id.clone().as_str());
         }
 
-        return true
+        true
+    }
+
+    pub fn set_stream_mode(&mut self, mode: &sdk::StreamMode) -> bool {
+        let res = QhyCcd::set_stream_mode(self.cam_handle, mode);
+        if res.is_err()
+        {
+            eprintln!("set_bin_mode failure, error: {}", res.unwrap_err());
+            return false
+        }
+        self.params.stream_mode = mode.clone();
+
+        let _ = QhyCcd::init(self.cam_handle);
+
+        true
     }
 
     fn aloc_buffer_memory(&mut self) -> bool {
@@ -549,13 +558,77 @@ impl Camera {
         return true;
     }
 
-    // pub fn init(&mut self) -> bool {
-    //     // ...
-    // }
+    pub fn set_control(&mut self, control_param: &ControlParam, value: f64, force: bool) -> bool {
+        let control_id = ControlId::try_from(control_param.clone() as u32).unwrap();
+        let is_available = QhyCcd::is_control_available(self.cam_handle, &control_id);
+        if !is_available.is_err() && is_available.unwrap() {
+            let change = self.check_force(control_param, value, force);
+            if change {
+                let res = QhyCcd::set_param(self.cam_handle, &control_id, value);
+                if res.is_ok() {
+                    self.change_internal_param(control_param, value);
+                    self.apply_side_effects_of_change_param(control_param);
+                }
+            }
+        } else if self.debug_info {
+            eprintln!("Control not available to change: {}", control_param);
+        }
 
-    // pub fn release(&mut self) {
-    //     // ...
-    // }
+        true
+    }
 
-    // ...
+    fn check_force(&mut self, control_param: &ControlParam, value: f64, force: bool) -> bool {
+        if !force {
+            let value_to_check = match control_param {
+                ControlParam::RedWB => self.params.red_wb,
+                ControlParam::GreenWB => self.params.green_wb,
+                ControlParam::BlueWB => self.params.blue_wb,
+                ControlParam::Brightness => self.params.brightness,
+                ControlParam::Channels => self.params.channels as f64,
+                ControlParam::Contrast => self.params.contrast,
+                ControlParam::Exposure => self.params.exposure_time as f64,
+                ControlParam::UsbTraffic => self.params.usb_traffic as f64,
+                ControlParam::UsbSpeed => self.params.usb_speed as f64,
+                ControlParam::Gain => self.params.gain as f64,
+                ControlParam::Offset => self.params.offset as f64,
+                ControlParam::TransferBits => self.params.transfer_bits as f64,
+                ControlParam::Gamma => self.params.gamma,
+            };
+           return  value_to_check != value
+        }
+
+        true
+    }
+
+    fn change_internal_param(&mut self, control_param: &ControlParam, value: f64) {
+        match control_param {
+            ControlParam::RedWB => self.params.red_wb = value,
+            ControlParam::GreenWB => self.params.green_wb = value,
+            ControlParam::BlueWB => self.params.blue_wb = value,
+            ControlParam::Brightness => self.params.brightness = value,
+            ControlParam::Channels => self.params.channels = value as u32,
+            ControlParam::Contrast => self.params.contrast = value,
+            ControlParam::Exposure => self.params.exposure_time = value as u32,
+            ControlParam::UsbTraffic => self.params.usb_traffic = value as u32,
+            ControlParam::UsbSpeed => self.params.usb_speed = value as u32,
+            ControlParam::Gain => self.params.gain = value as u32,
+            ControlParam::Offset => self.params.offset = value as u32,
+            ControlParam::TransferBits => self.params.transfer_bits = value as u32,
+            ControlParam::Gamma => self.params.gamma = value,
+        };
+    }
+
+    fn apply_side_effects_of_change_param(&mut self, control_param: &ControlParam) {
+        match control_param {
+            ControlParam::Channels => {
+                self.aloc_buffer_memory();
+            },
+            ControlParam::TransferBits => {
+                self.aloc_buffer_memory();
+                self.close();
+                self.open(&self.cam_id.clone());
+            },
+            _ => {}
+        };
+    }
 }

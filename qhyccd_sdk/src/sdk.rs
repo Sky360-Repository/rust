@@ -1,8 +1,8 @@
- #[path = "c_bindings.rs"]
- mod c_bindings;
+#[path = "c_bindings.rs"]
+mod c_bindings;
 
- use derive_more::Display;
- use num_enum::{IntoPrimitive, TryFromPrimitive};
+use derive_more::Display;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -19,7 +19,7 @@ pub enum CameraStatus {
 }
 
 #[repr(u32)]
-#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
 pub enum SdkError {
     Success = 0,
     NotCool = 1,
@@ -43,7 +43,7 @@ impl Default for SdkError {
 }
 
 #[repr(u32)]
-#[derive(Debug, Clone, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
+#[derive(Debug, Copy, Clone, PartialEq, IntoPrimitive, TryFromPrimitive, Display)]
 pub enum BayerFormat {
     GB = 1,
     GR = 2,
@@ -53,7 +53,7 @@ pub enum BayerFormat {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StreamMode {
     SingleFrame = 0,
     LiveFrame = 1,
@@ -65,7 +65,8 @@ impl Default for BayerFormat {
     }
 }
 
-#[derive(Display)]
+#[repr(u32)]
+#[derive(Display, Copy, Clone, IntoPrimitive, TryFromPrimitive)]
 pub enum ControlId {
     ControlBrightness = 0,
     ControlContrast = 1,
@@ -239,8 +240,8 @@ impl QhyCcd {
         }
     }    
     
-    pub fn set_stream_mode(handle: *mut c_bindings::QhyCcdHandle, mode: StreamMode) -> Result<(), SdkError> {
-        let ret = unsafe { c_bindings::SetQHYCCDStreamMode(handle, mode as u8) };
+    pub fn set_stream_mode(handle: *mut c_bindings::QhyCcdHandle, mode: &StreamMode) -> Result<(), SdkError> {
+        let ret = unsafe { c_bindings::SetQHYCCDStreamMode(handle, *mode as u8) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(()),
@@ -248,8 +249,8 @@ impl QhyCcd {
         }
     }
     
-    pub fn is_control_available(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<bool, BayerFormat> {
-        let ret = unsafe { c_bindings::IsQHYCCDControlAvailable(handle, control_id as u32) };
+    pub fn is_control_available(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId) -> Result<bool, BayerFormat> {
+        let ret = unsafe { c_bindings::IsQHYCCDControlAvailable(handle, *control_id as u32) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(true),
@@ -261,8 +262,8 @@ impl QhyCcd {
         }
     }
     
-    pub fn set_param(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId, value: f64) -> Result<(), SdkError> {
-        let ret = unsafe { c_bindings::SetQHYCCDParam(handle, control_id as u32, value) };
+    pub fn set_param(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId, value: f64) -> Result<(), SdkError> {
+        let ret = unsafe { c_bindings::SetQHYCCDParam(handle, *control_id as u32, value) };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
             SdkError::Success => Ok(()),
@@ -270,17 +271,17 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_param(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> f64 {
-        unsafe { c_bindings::GetQHYCCDParam(handle, control_id as u32) }
+    pub fn get_param(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId) -> f64 {
+        unsafe { c_bindings::GetQHYCCDParam(handle, *control_id as u32) }
     }
 
-    pub fn get_param_min_max_step(handle: *mut c_bindings::QhyCcdHandle, control_id: ControlId) -> Result<(f64, f64, f64), SdkError> {
+    pub fn get_param_min_max_step(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId) -> Result<(f64, f64, f64), SdkError> {
         let mut min: f64 = 0.0;
         let mut max: f64 = 0.0;
         let mut step: f64 = 0.0;
     
         let ret = unsafe {
-            c_bindings::GetQHYCCDParamMinMaxStep(handle, control_id as u32, &mut min as *mut f64, &mut max as *mut f64, &mut step as *mut f64)
+            c_bindings::GetQHYCCDParamMinMaxStep(handle, *control_id as u32, &mut min as *mut f64, &mut max as *mut f64, &mut step as *mut f64)
         };
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
