@@ -1,3 +1,8 @@
+extern crate opencv;
+
+use std::time::Instant;
+use std::thread;
+use std::time::Duration;
 use std::fmt;
 use std::collections::HashMap;
 use derive_more::Display;
@@ -5,7 +10,11 @@ use derive_more::Display;
 #[path = "c_bindings.rs"]
 mod c_bindings;
 
-use crate::sdk::{self, ControlId};
+use opencv::{
+    core, imgproc::*, prelude::*
+};
+
+use crate::sdk::{self, ControlId, BayerFormat};
 
 pub struct Camera {
     debug_info: bool,
@@ -466,7 +475,7 @@ impl Camera {
             self.set_resolution(0, 0, self.current_info.max_image_width, self.current_info.max_image_height);
             self.set_control(&ControlParam::TransferBits, 8.0, true);
             self.set_control(&ControlParam::Channels, 1.0, true);
-            self.set_bin_mode(BinMode::Bin1x1);
+            self.set_bin_mode(&BinMode::Bin1x1);
             self.set_control(&ControlParam::Contrast, 0.0, true);
             self.set_control(&ControlParam::Brightness, 0.0, true);
             self.set_control(&ControlParam::Gamma, 1.0, true);
@@ -475,7 +484,23 @@ impl Camera {
         }
         else
         {
-            // applyParams();
+            self.set_debayer(self.params.apply_debayer);
+            self.set_control(&ControlParam::RedWB, self.params.red_wb, true);
+            self.set_control(&ControlParam::GreenWB, self.params.green_wb, true);
+            self.set_control(&ControlParam::BlueWB, self.params.blue_wb, true);
+            self.set_control(&ControlParam::Exposure, self.params.exposure_time as f64, true);
+            self.set_stream_mode(&self.params.stream_mode.clone());
+            self.set_control(&ControlParam::UsbTraffic, self.params.usb_traffic as f64, true);
+            self.set_control(&ControlParam::UsbSpeed, self.params.usb_speed as f64, true);
+            self.set_control(&ControlParam::Gain, self.params.gain as f64, true);
+            self.set_control(&ControlParam::Offset, self.params.offset as f64, true);
+            self.set_resolution(self.params.roi_start_x, self.params.roi_start_y, self.params.roi_width, self.params.roi_height);
+            self.set_control(&ControlParam::TransferBits, self.params.transfer_bits as f64, true);
+            self.set_control(&ControlParam::Channels, self.params.channels as f64, true);
+            self.set_bin_mode(&self.params.bin_mode.clone());
+            self.set_control(&ControlParam::Contrast, self.params.contrast, true);
+            self.set_control(&ControlParam::Brightness, self.params.brightness, true);
+            self.set_control(&ControlParam::Gamma, self.params.gamma, true);
         }
     }
 
@@ -492,7 +517,7 @@ impl Camera {
         true
     }
 
-    pub fn set_bin_mode(&mut self, bin_mode: BinMode) -> bool {
+    pub fn set_bin_mode(&mut self, bin_mode: &BinMode) -> bool {
         let bin_value = bin_mode.clone() as u32;
         let res = QhyCcd::set_bin_mode(self.cam_handle, bin_value, bin_value);
         if res.is_err()
@@ -501,7 +526,7 @@ impl Camera {
             return false
         }
         let _ = self.aloc_buffer_memory();
-        self.params.bin_mode = bin_mode;
+        self.params.bin_mode = bin_mode.clone();
 
         true
     }
@@ -619,16 +644,186 @@ impl Camera {
     }
 
     fn apply_side_effects_of_change_param(&mut self, control_param: &ControlParam) {
-        match control_param {
-            ControlParam::Channels => {
-                self.aloc_buffer_memory();
-            },
-            ControlParam::TransferBits => {
-                self.aloc_buffer_memory();
-                self.close();
-                self.open(&self.cam_id.clone());
-            },
-            _ => {}
-        };
+        if self.cam_open {
+            match control_param {
+                ControlParam::Channels => {
+                    self.aloc_buffer_memory();
+                },
+                ControlParam::TransferBits => {
+                    self.aloc_buffer_memory();
+                    self.close();
+                    self.open(&self.cam_id.clone());
+                },
+                _ => {}
+            };
+        }
     }
+
+    pub fn get_frame(&mut self, frame: &mut Mat, debayer : bool) -> bool {
+        let ret = self.get_internal_frame();
+        if !ret {
+            return false
+        }
+
+        let mat_channels = if self.current_info.is_color && self.params.apply_debayer { 3 } else { 1 };
+        let mat_type = if self.params.transfer_bits == 16 { 
+            core::CV_MAKETYPE(core::CV_16U, mat_channels) 
+        } else {
+            core::CV_MAKETYPE(core::CV_8U, mat_channels) 
+        };
+
+        let img_qhy_res = unsafe { Mat::new_rows_cols_with_data(self.params.roi_height as i32, self.params.roi_width as i32, mat_type, self.img_data.as_ptr() as *mut _, core::Mat_AUTO_STEP) };
+        if img_qhy_res.is_err() {
+            return false
+        }
+        let img_qhy = img_qhy_res.unwrap();
+
+        if self.current_info.is_color && !self.params.apply_debayer && debayer {
+            self.debayer_image(&img_qhy, frame);
+        } else {
+            let _ = img_qhy.copy_to(frame);
+        }
+
+        true
+    }
+
+    pub fn debayer_image(&self, image_in: &Mat, image_out: &mut Mat) {
+        if image_in.channels() == 1 {
+            let bayer_pattern = Camera::convert_bayer_pattern(self.current_info.bayer_format);
+            let _ = cvt_color(image_in, image_out, bayer_pattern, 0);
+        } else {
+            let _ = image_in.copy_to(image_out);
+        }
+    }
+
+    fn convert_bayer_pattern(bayer_format: BayerFormat) -> i32 {
+        match bayer_format {
+            BayerFormat::GB => opencv::imgproc::COLOR_BayerGR2BGR,
+            BayerFormat::GR => opencv::imgproc::COLOR_BayerGB2BGR,
+            BayerFormat::BG => opencv::imgproc::COLOR_BayerRG2BGR,
+            BayerFormat::RG => opencv::imgproc::COLOR_BayerBG2BGR,
+            BayerFormat::Mono => 0,
+        }
+    }
+
+    fn get_internal_frame(&mut self) -> bool {
+        if !self.is_exposing
+        {
+            self.begin_exposing();
+        }
+
+        let mut w: u32 = 0;
+        let mut h: u32 = 0;
+        let mut bpp: u32 = 0;
+        let mut channels: u32 = 0;
+
+        let start = Instant::now();
+
+        if self.params.stream_mode == sdk::StreamMode::SingleFrame {
+            if !self.get_single(&mut w, &mut h, &mut bpp, &mut channels) {
+                return false
+            }
+        }
+        else
+        {
+            if !self.get_live(&mut w, &mut h, &mut bpp, &mut channels) {
+                return false
+            }
+        }
+
+        let stop = Instant::now();
+        let duration = stop.duration_since(start);
+        self.last_frame_capture_time = duration.as_secs_f64();
+
+        true
+    }
+
+    fn begin_exposing(&mut self) -> bool {
+        if self.params.stream_mode == sdk::StreamMode::SingleFrame {
+            if self.is_exposing {
+                let _ = QhyCcd::cancel_exposing_and_readout(self.cam_handle);
+            }
+            let rc = QhyCcd::exp_single_frame(self.cam_handle);
+            if rc.is_err() {                
+                let error = rc.unwrap_err();
+                if error == sdk::SdkError::ReadDirectly {
+                    thread::sleep(Duration::from_micros(10));
+                } else {
+                    eprintln!("exp_single_frame failed: {}", error);
+                    self.is_exposing = false;
+                    return false
+                }
+            } 
+        } else {
+            if self.is_exposing {
+                let _ = QhyCcd::stop_live(self.cam_handle);
+            }
+            let rc = QhyCcd::begin_live(self.cam_handle);
+            if rc.is_err() {
+                eprintln!("begin_live failed: {}", rc.unwrap_err());
+                self.is_exposing = false;
+                return false
+            }
+        }
+        self.is_exposing = true;
+
+        self.is_exposing
+    }
+
+    pub fn get_single(&mut self, w: &mut u32, h: &mut u32, bpp: &mut u32, channels: &mut u32) -> bool {
+        let mut tries = 0;
+
+        loop {
+            let res = QhyCcd::get_single_frame(self.cam_handle, &mut self.img_data[..]);
+            if res.is_ok() {
+                if self.debug_info {
+                    let frame_data = res.unwrap();
+                    *w = frame_data.0;
+                    *h = frame_data.1;
+                    *bpp = frame_data.2;
+                    *channels = frame_data.3;
+                    println!("Got frame: {}x{}x{} {}bpp, tries: {}", frame_data.0, frame_data.1, frame_data.3, frame_data.2, tries);
+                }
+                break;
+            }
+            tries += 1;
+            if tries > 1000 {
+                if self.debug_info {
+                    eprintln!("get_live_frame failed: {}, tries: {}", res.unwrap_err(), tries);
+                }
+                return false
+            }
+        }
+
+        true // Placeholder value
+    }
+
+    pub fn get_live(&mut self, w: &mut u32, h: &mut u32, bpp: &mut u32, channels: &mut u32) -> bool {
+        let mut tries = 0;
+
+        loop {
+            let res = QhyCcd::get_live_frame(self.cam_handle, &mut self.img_data[..]);
+            if res.is_ok() {
+                if self.debug_info {
+                    let frame_data = res.unwrap();
+                    *w = frame_data.0;
+                    *h = frame_data.1;
+                    *bpp = frame_data.2;
+                    *channels = frame_data.3;
+                    println!("Got frame: {}x{}x{} {}bpp, tries: {}", frame_data.0, frame_data.1, frame_data.3, frame_data.2, tries);
+                }
+                break;
+            }
+            tries += 1;
+            if tries > 1000 {
+                if self.debug_info {
+                    eprintln!("get_live_frame failed: {}, tries: {}", res.unwrap_err(), tries);
+                }
+                return false
+            }
+        }
+
+        true // Placeholder value
+    }
+
 }
