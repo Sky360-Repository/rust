@@ -5,7 +5,6 @@ use derive_more::Display;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-
 pub struct QhyCcd {
 }
 
@@ -52,6 +51,12 @@ pub enum BayerFormat {
     Mono = 0xffffffff
 }
 
+impl Default for BayerFormat {
+    fn default() -> Self {
+        BayerFormat::Mono
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StreamMode {
@@ -59,10 +64,45 @@ pub enum StreamMode {
     LiveFrame = 1,
 }
 
-impl Default for BayerFormat {
-    fn default() -> Self {
-        BayerFormat::Mono
-    }
+#[derive(Debug, Clone, Default)]
+pub struct ParamLimits {
+    pub min: f64,
+    pub max: f64,
+    pub step: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ImageResult {
+    pub width: u32,
+    pub height: u32,
+    pub bpp: u32,
+    pub channels: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ChipInfo {
+    pub chip_width: f64,
+    pub chip_height: f64,
+    pub image_width: u32,
+    pub image_height: u32,
+    pub pixel_width: f64,
+    pub pixel_height: f64,
+    pub bpp: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CameraArea {
+    pub start_x: u32,
+    pub start_y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+pub struct SdkVersion {
+    pub year: u32,
+    pub month: u32,
+    pub day: u32,
+    pub subday: u32,
 }
 
 #[repr(u32)]
@@ -275,7 +315,7 @@ impl QhyCcd {
         unsafe { c_bindings::GetQHYCCDParam(handle, *control_id as u32) }
     }
 
-    pub fn get_param_min_max_step(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId) -> Result<(f64, f64, f64), SdkError> {
+    pub fn get_param_min_max_step(handle: *mut c_bindings::QhyCcdHandle, control_id: &ControlId) -> Result<ParamLimits, SdkError> {
         let mut min: f64 = 0.0;
         let mut max: f64 = 0.0;
         let mut step: f64 = 0.0;
@@ -286,7 +326,7 @@ impl QhyCcd {
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((min, max, step)),
+            SdkError::Success => Ok(ParamLimits {min, max, step}),
             _ => Err(error_result)
         }
     }
@@ -324,7 +364,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_single_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_single_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<ImageResult, SdkError> {
         let mut w: u32 = 0;
         let mut h: u32 = 0;
         let mut bpp: u32 = 0;
@@ -342,7 +382,7 @@ impl QhyCcd {
         };
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((w, h, bpp, channels)),
+            SdkError::Success => Ok(ImageResult {width: w, height: h, bpp, channels}),
             _ => Err(error_result)
         }
     }
@@ -383,7 +423,7 @@ impl QhyCcd {
         }
     }
     
-    pub fn get_live_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_live_frame(handle: *mut c_bindings::QhyCcdHandle, buffer: &mut [u8]) -> Result<ImageResult, SdkError> {
         let mut w: u32 = 0;
         let mut h: u32 = 0;
         let mut bpp: u32 = 0;
@@ -402,7 +442,7 @@ impl QhyCcd {
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((w, h, bpp, channels)),
+            SdkError::Success => Ok(ImageResult {width: w, height: h, bpp, channels}),
             _ => Err(error_result)
         }
     }
@@ -434,7 +474,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_chip_info(handle: *mut c_bindings::QhyCcdHandle) -> Result<(f64, f64, u32, u32, f64, f64, u32), SdkError> {
+    pub fn get_chip_info(handle: *mut c_bindings::QhyCcdHandle) -> Result<ChipInfo, SdkError> {
         let mut chipw: f64 = 0.0;
         let mut chiph: f64 = 0.0;
         let mut imagew: u32 = 0;
@@ -458,12 +498,12 @@ impl QhyCcd {
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((chipw, chiph, imagew, imageh, pixelw, pixelh, bpp)),
+            SdkError::Success => Ok(ChipInfo {chip_width: chipw, chip_height: chiph, image_width: imagew, image_height: imageh, pixel_width: pixelw, pixel_height: pixelh, bpp}),
             _ => Err(error_result)
         }
     }
 
-    pub fn get_effective_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_effective_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<CameraArea, SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -481,12 +521,12 @@ impl QhyCcd {
 
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((start_x, start_y, size_x, size_y)),
+            SdkError::Success => Ok(CameraArea {start_x, start_y, width: size_x, height: size_y}),
             _ => Err(error_result)
         }
     }
 
-    pub fn get_overscan_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_overscan_area(handle: *mut c_bindings::QhyCcdHandle) -> Result<CameraArea, SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -504,12 +544,12 @@ impl QhyCcd {
 
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((start_x, start_y, size_x, size_y)),
+            SdkError::Success => Ok(CameraArea {start_x, start_y, width: size_x, height: size_y}),
             _ => Err(error_result)
         }
     }
 
-    pub fn get_current_roi(handle: *mut c_bindings::QhyCcdHandle) -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_current_roi(handle: *mut c_bindings::QhyCcdHandle) -> Result<CameraArea, SdkError> {
         let mut start_x: u32 = 0;
         let mut start_y: u32 = 0;
         let mut size_x: u32 = 0;
@@ -527,7 +567,7 @@ impl QhyCcd {
 
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((start_x, start_y, size_x, size_y)),
+            SdkError::Success => Ok(CameraArea {start_x, start_y, width: size_x, height: size_y}),
             _ => Err(error_result)
         }
     }
@@ -561,7 +601,7 @@ impl QhyCcd {
         }
     }
 
-    pub fn get_sdk_version() -> Result<(u32, u32, u32, u32), SdkError> {
+    pub fn get_sdk_version() -> Result<SdkVersion, SdkError> {
         let mut year: u32 = 0;
         let mut month: u32 = 0;
         let mut day: u32 = 0;
@@ -573,7 +613,7 @@ impl QhyCcd {
     
         let error_result = SdkError::try_from(ret).unwrap_or_default();
         match error_result {
-            SdkError::Success => Ok((year, month, day, subday)),
+            SdkError::Success => Ok(SdkVersion {year, month, day, subday}),
             _ => Err(error_result)
         }
     }
