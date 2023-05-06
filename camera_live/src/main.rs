@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     camera.set_debug_info(true);
     camera.set_control(&ControlParam::Exposure, 200.0, false);
 
-    let window_name = "Webcam";
+    let window_name = "Live";
     highgui::named_window(window_name, highgui::WINDOW_NORMAL)?;
 
     loop {
@@ -30,14 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = camera.get_frame(&mut frame, true);
     
         if frame.size()?.width > 0 {
-            // // Convert frame to grayscale
-            // let mut gray_frame = core::Mat::default();
-            // imgproc::cvt_color(&frame, &mut gray_frame, imgproc::COLOR_BGR2GRAY, 0)?;
-
-            // Show the grayscale frame in the window
             highgui::imshow(window_name, &frame)?;
 
-            // Break the loop if 'ESC' key is pressed
             let key = highgui::wait_key(20)?;
             if key == 27 {
                 break;
@@ -67,10 +61,6 @@ fn open_qhy_camera() -> Option<Camera> {
         println!("Could not open camera");
         return None
     }
-
-    camera.set_control(&ControlParam::RedWB, 180.0, false);
-    camera.set_control(&ControlParam::GreenWB, 128.0, false);
-    camera.set_control(&ControlParam::BlueWB, 190.0, false);
 
     return Some(camera)
 }
