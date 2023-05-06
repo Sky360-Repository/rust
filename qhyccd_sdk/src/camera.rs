@@ -104,21 +104,7 @@ impl Camera {
     pub fn new() -> Self {
         QhyCcd::enable_message(false);
         QhyCcd::enable_log_file(false);
-        Camera {
-            is_debug_info: false,
-            cam_id: String::new(),
-            cam_handle: std::ptr::null_mut(),
-            img_data: vec![0; 1],
-            cameras: HashMap::new(),
-            params: CameraParams::default(),
-            current_info: CameraInfo::default(),
-            last_frame_capture_time: 0.0,
-
-            is_cam_init: false,
-            is_cam_open: false,
-            is_exposing: false,
-            is_default_set: false,
-        }
+        Camera::default()
     }
 
     pub fn init(&mut self) -> bool {
@@ -139,8 +125,7 @@ impl Camera {
     }
 
     pub fn close(&mut self) {
-        if self.is_cam_open
-        {
+        if self.is_cam_open {
             if self.params.stream_mode == sdk::StreamMode::SingleFrame {
                 let _ = QhyCcd::cancel_exposing_and_readout(self.cam_handle);
             } else {
@@ -184,20 +169,14 @@ impl Camera {
             return false
         }
         let mut cam_id = camera_id.to_string();
-        if !self.is_cam_open
-        {
-            if cam_id.is_empty()
-            {
-                if !self.scan_cameras()
-                {
+        if !self.is_cam_open {
+            if cam_id.is_empty() {
+                if !self.scan_cameras() {
                     return false
                 }
                 let camera_iter = self.cameras.iter().next();
                 cam_id = camera_iter.unwrap().1.id.clone();
-            }
-            // else if self.cam_id.is_some() && cam_id.as_str() != self.cam_id.map(|s| s.as_str())
-            else if self.cam_id != cam_id
-            {
+            } else if self.cam_id != cam_id {
                 self.is_default_set = false;
             }
             self.cam_id = cam_id.clone();
@@ -208,8 +187,7 @@ impl Camera {
             self.current_info = has_info.unwrap().clone();
 
             let has_cam_handle = QhyCcd::open(&cam_id);
-            if has_cam_handle.is_err()
-            {
+            if has_cam_handle.is_err() {
                 self.cam_handle = std::ptr::null_mut();
                 self.cam_id = String::new();
                 self.current_info = CameraInfo::default();
@@ -227,8 +205,7 @@ impl Camera {
 
     pub fn set_debayer(&mut self, enable: bool) -> bool {
         let res = QhyCcd::set_debayer_on_off(self.cam_handle, enable);
-        if res.is_err()
-        {
+        if res.is_err() {
             eprintln!("set_debayer failure, error: {}", res.unwrap_err());
             return false
         }
@@ -241,8 +218,7 @@ impl Camera {
     pub fn set_bin_mode(&mut self, bin_mode: &BinMode) -> bool {
         let bin_value = bin_mode.clone() as u32;
         let res = QhyCcd::set_bin_mode(self.cam_handle, bin_value, bin_value);
-        if res.is_err()
-        {
+        if res.is_err() {
             eprintln!("set_bin_mode failure, error: {}", res.unwrap_err());
             return false
         }
@@ -254,8 +230,7 @@ impl Camera {
 
     pub fn set_resolution(&mut self, start_x: u32, start_y: u32, width: u32, height: u32) -> bool {
         let res = QhyCcd::set_resolution(self.cam_handle, start_x, start_y, width, height);
-        if res.is_err()
-        {
+        if res.is_err() {
             eprintln!("set_resolution failure, error: {}", res.unwrap_err());
             return false
         }
@@ -275,8 +250,7 @@ impl Camera {
 
     pub fn set_stream_mode(&mut self, mode: &sdk::StreamMode) -> bool {
         let res = QhyCcd::set_stream_mode(self.cam_handle, mode);
-        if res.is_err()
-        {
+        if res.is_err() {
             eprintln!("set_bin_mode failure, error: {}", res.unwrap_err());
             return false
         }
@@ -344,8 +318,7 @@ impl Camera {
     }
 
     fn set_default_params(&mut self) {
-        if !self.is_default_set
-        {
+        if !self.is_default_set {
             self.set_debayer(false);
             self.set_control(&ControlParam::RedWB, 180.0, true);
             self.set_control(&ControlParam::GreenWB, 128.0, true);
@@ -365,9 +338,7 @@ impl Camera {
             self.set_control(&ControlParam::Gamma, 1.0, true);
 
             self.is_default_set = true;
-        }
-        else
-        {
+        } else {
             self.set_debayer(self.params.debayer);
             self.set_control(&ControlParam::RedWB, self.params.red_wb, true);
             self.set_control(&ControlParam::GreenWB, self.params.green_wb, true);
@@ -456,8 +427,7 @@ impl Camera {
     }
 
     fn get_internal_frame(&mut self) -> bool {
-        if !self.is_exposing
-        {
+        if !self.is_exposing {
             self.begin_exposing();
         }
 
@@ -472,9 +442,7 @@ impl Camera {
             if !self.get_single(&mut w, &mut h, &mut bpp, &mut channels) {
                 return false
             }
-        }
-        else
-        {
+        } else {
             if !self.get_live(&mut w, &mut h, &mut bpp, &mut channels) {
                 return false
             }
@@ -538,7 +506,7 @@ impl Camera {
             tries += 1;
             if tries > 1000 {
                 if self.is_debug_info {
-                    eprintln!("get_live_frame failed: {}, tries: {}", res.unwrap_err(), tries);
+                    eprintln!("get_single_frame failed: {}, tries: {}", res.unwrap_err(), tries);
                 }
                 return false
             }
@@ -667,8 +635,7 @@ impl Camera {
 
     fn aloc_buffer_memory(&mut self) -> bool {
         let has_size = QhyCcd::get_mem_length(self.cam_handle);
-        if has_size.is_err()
-        {
+        if has_size.is_err() {
             eprintln!("Cannot get memory needed for frame.");
             return false
         }
@@ -792,6 +759,26 @@ impl Default for CameraParams {
             bin_mode: BinMode::Bin1x1,
 
             bpp: 0,
+        }
+    }
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Camera {
+            is_debug_info: false,
+            cam_id: String::new(),
+            cam_handle: std::ptr::null_mut(),
+            img_data: vec![0; 1],
+            cameras: HashMap::new(),
+            params: CameraParams::default(),
+            current_info: CameraInfo::default(),
+            last_frame_capture_time: 0.0,
+
+            is_cam_init: false,
+            is_cam_open: false,
+            is_exposing: false,
+            is_default_set: false,
         }
     }
 }
